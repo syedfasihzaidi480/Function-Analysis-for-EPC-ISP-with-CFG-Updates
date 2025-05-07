@@ -1,11 +1,8 @@
+#include <CUnit/CUnit.h>
+#include <CUnit/Basic.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include "cli.h"
-
-// Utility function to print the test results in a table format
-void print_test_result(const char *test_case, const char *result) {
-    printf("| %-50s | %-10s |\n", test_case, result);
-}
 
 // Test case to check unregistering a single command
 void test_cli_unregister_tree_single_command(void) {
@@ -19,11 +16,10 @@ void test_cli_unregister_tree_single_command(void) {
     cli_unregister_tree(&cli, NULL, CLI_SPECIFIC_TYPE);
 
     // Validate that the command was removed
-    if (cli.commands == NULL) {
-        print_test_result("test_cli_unregister_tree_single_command", "PASS");
-    } else {
-        print_test_result("test_cli_unregister_tree_single_command", "FAIL");
-    }
+    CU_ASSERT_PTR_NULL(cli.commands);
+
+    // Clean up
+    if (cli.commands) free(cli.commands);
 }
 
 // Test case to check unregistering multiple commands
@@ -40,11 +36,10 @@ void test_cli_unregister_tree_multiple_commands(void) {
     cli_unregister_tree(&cli, NULL, CLI_SPECIFIC_TYPE);
 
     // Validate that the first command was removed, and the second command remains
-    if (cli.commands == cmd2) {
-        print_test_result("test_cli_unregister_tree_multiple_commands", "PASS");
-    } else {
-        print_test_result("test_cli_unregister_tree_multiple_commands", "FAIL");
-    }
+    CU_ASSERT_PTR_EQUAL(cli.commands, cmd2);
+
+    // Clean up
+    if (cli.commands) free(cli.commands);
 }
 
 // Test case to check unregistering all commands with CLI_ANY_COMMAND
@@ -61,11 +56,10 @@ void test_cli_unregister_tree_all_commands(void) {
     cli_unregister_tree(&cli, NULL, CLI_ANY_COMMAND);
 
     // Validate that all commands are removed
-    if (cli.commands == NULL) {
-        print_test_result("test_cli_unregister_tree_all_commands", "PASS");
-    } else {
-        print_test_result("test_cli_unregister_tree_all_commands", "FAIL");
-    }
+    CU_ASSERT_PTR_NULL(cli.commands);
+
+    // Clean up
+    if (cli.commands) free(cli.commands);
 }
 
 // Test case to check unregistering when command list is empty
@@ -76,11 +70,7 @@ void test_cli_unregister_tree_empty_list(void) {
     cli_unregister_tree(&cli, NULL, CLI_SPECIFIC_TYPE);
 
     // Validate that the list remains empty
-    if (cli.commands == NULL) {
-        print_test_result("test_cli_unregister_tree_empty_list", "PASS");
-    } else {
-        print_test_result("test_cli_unregister_tree_empty_list", "FAIL");
-    }
+    CU_ASSERT_PTR_NULL(cli.commands);
 }
 
 // Test case to check unregistering with NULL command parameter
@@ -93,22 +83,21 @@ void test_cli_unregister_tree_null_command(void) {
     cmd1->next = cmd2;
     cli.commands = cmd1;
 
-    // Unregister commands with NULL 'command' argument (using default cli->commands)
+    // Unregister commands with NULL 'command' argument
     cli_unregister_tree(&cli, NULL, CLI_SPECIFIC_TYPE);
 
     // Validate that the first command was removed
-    if (cli.commands == cmd2) {
-        print_test_result("test_cli_unregister_tree_null_command", "PASS");
-    } else {
-        print_test_result("test_cli_unregister_tree_null_command", "FAIL");
-    }
+    CU_ASSERT_PTR_EQUAL(cli.commands, cmd2);
+
+    // Clean up
+    if (cli.commands) free(cli.commands);
 }
 
 // Test case to check unregistering a command of a different type
 void test_cli_unregister_tree_different_type(void) {
     struct cli_def cli = { NULL };
     struct cli_command *cmd1 = create_command(CLI_SPECIFIC_TYPE, "cmd1");
-    struct cli_command *cmd2 = create_command(999, "cmd2"); // Invalid type
+    struct cli_command *cmd2 = create_command(999, "cmd2");
 
     // Add commands to CLI
     cmd1->next = cmd2;
@@ -118,11 +107,10 @@ void test_cli_unregister_tree_different_type(void) {
     cli_unregister_tree(&cli, NULL, CLI_SPECIFIC_TYPE);
 
     // Validate that the first command was removed, and the second command remains
-    if (cli.commands == cmd2) {
-        print_test_result("test_cli_unregister_tree_different_type", "PASS");
-    } else {
-        print_test_result("test_cli_unregister_tree_different_type", "FAIL");
-    }
+    CU_ASSERT_PTR_EQUAL(cli.commands, cmd2);
+
+    // Clean up
+    if (cli.commands) free(cli.commands);
 }
 
 // Test case to check unregistering the last command in the list
@@ -139,11 +127,11 @@ void test_cli_unregister_tree_last_command(void) {
     cli_unregister_tree(&cli, cmd2, CLI_SPECIFIC_TYPE);
 
     // Validate that the second command was removed and the first remains
-    if (cli.commands == cmd1 && cmd1->next == NULL) {
-        print_test_result("test_cli_unregister_tree_last_command", "PASS");
-    } else {
-        print_test_result("test_cli_unregister_tree_last_command", "FAIL");
-    }
+    CU_ASSERT_PTR_EQUAL(cli.commands, cmd1);
+    CU_ASSERT_PTR_NULL(cmd1->next);
+
+    // Clean up
+    if (cli.commands) free(cli.commands);
 }
 
 // Test case to check unregistering a command from the middle of the list
@@ -162,10 +150,13 @@ void test_cli_unregister_tree_middle_command(void) {
     cli_unregister_tree(&cli, cmd2, CLI_SPECIFIC_TYPE);
 
     // Validate that the middle command was removed and the remaining ones are linked
-    if (cli.commands == cmd1 && cmd1->next == cmd3) {
-        print_test_result("test_cli_unregister_tree_middle_command", "PASS");
-    } else {
-        print_test_result("test_cli_unregister_tree_middle_command", "FAIL");
+    CU_ASSERT_PTR_EQUAL(cli.commands, cmd1);
+    CU_ASSERT_PTR_EQUAL(cmd1->next, cmd3);
+
+    // Clean up
+    if (cli.commands) {
+        if (cmd1->next) free(cmd1->next);
+        free(cli.commands);
     }
 }
 
@@ -179,32 +170,54 @@ void test_cli_unregister_tree_fail_case(void) {
     cmd1->next = cmd2;
     cli.commands = cmd1;
 
-    // Unregister the first command with an invalid type to force a failure
-    cli_unregister_tree(&cli, NULL, 999);  // Invalid type to trigger failure
+    // Unregister the first command with an invalid type
+    cli_unregister_tree(&cli, NULL, 999);
 
-    // Validate that no commands were removed (test failure)
-    if (cli.commands == cmd1) {
-        print_test_result("test_cli_unregister_tree_fail_case", "PASS");
-    } else {
-        print_test_result("test_cli_unregister_tree_fail_case", "FAIL");
-    }
+    // Validate that no commands were removed
+    CU_ASSERT_PTR_EQUAL(cli.commands, cmd1);
+
+    // Clean up
+    if (cli.commands) free(cli.commands);
 }
 
-// Main function to run the test cases
+// Main function to initialize and run CUnit tests
 int main(void) {
-    // Print the header for the table
-    printf("| %-50s | %-10s |\n", "Test Case", "Result");
-    printf("|--------------------------------------------------|------------|\n");
+    // Initialize the CUnit test registry
+    if (CU_initialize_registry() != CUE_SUCCESS) {
+        return CU_get_error();
+    }
 
-    test_cli_unregister_tree_single_command();
-    test_cli_unregister_tree_multiple_commands();
-    test_cli_unregister_tree_all_commands();
-    test_cli_unregister_tree_empty_list();
-    test_cli_unregister_tree_null_command();
-    test_cli_unregister_tree_different_type();
-    test_cli_unregister_tree_last_command();
-    test_cli_unregister_tree_middle_command();
-    test_cli_unregister_tree_fail_case();
+    // Create a test suite
+    CU_pSuite suite = CU_add_suite("CLI_Unregister_Tree_Suite", NULL, NULL);
+    if (suite == NULL) {
+        CU_cleanup_registry();
+        return CU_get_error();
+    }
 
-    return 0;
+    // Add test cases to the suite
+    if (
+        (CU_add_test(suite, "Test Unregister Single Command", test_cli_unregister_tree_single_command) == NULL) ||
+        (CU_add_test(suite, "Test Unregister Multiple Commands", test_cli_unregister_tree_multiple_commands) == NULL) ||
+        (CU_add_test(suite, "Test Unregister All Commands", test_cli_unregister_tree_all_commands) == NULL) ||
+        (CU_add_test(suite, "Test Unregister Empty List", test_cli_unregister_tree_empty_list) == NULL) ||
+        (CU_add_test(suite, "Test Unregister Null Command", test_cli_unregister_tree_null_command) == NULL) ||
+        (CU_add_test(suite, "Test Unregister Different Type", test_cli_unregister_tree_different_type) == NULL) ||
+        (CU_add_test(suite, "Test Unregister Last Command", test_cli_unregister_tree_last_command) == NULL) ||
+        (CU_add_test(suite, "Test Unregister Middle Command", test_cli_unregister_tree_middle_command) == NULL) ||
+        (CU_add_test(suite, "Test Unregister Fail Case", test_cli_unregister_tree_fail_case) == NULL)
+    ) {
+        CU_cleanup_registry();
+        return CU_get_error();
+    }
+
+    // Set the CUnit test mode to basic
+    CU_basic_set_mode(CU_BRM_VERBOSE);
+
+    // Run all tests
+    CU_basic_run_tests();
+
+    // Clean up the registry
+    CU_cleanup_registry();
+
+    return CU_get_error();
 }

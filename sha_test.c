@@ -1,10 +1,11 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <string.h>
+#include "CUnit/Basic.h"
 #include "sha.h"
 
 // Function to print state in a hex format, with a prefix string
-void print_state(const char *prefix, const uint32_t state[8]) {
+void print_state_debug(const char *prefix, const uint32_t state[8]) {
     printf("%s", prefix);
     for (int i = 0; i < 8; i++) {
         printf("%08x ", state[i]);
@@ -13,7 +14,7 @@ void print_state(const char *prefix, const uint32_t state[8]) {
 }
 
 // Test Case 1: Expected correct transformation for a specific input block
-void test_SHA256_Transform_pass_case_1() {
+void test_SHA256_Transform_pass_case_1(void) { 
     uint32_t state[8] = {
         0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a,
         0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19
@@ -37,17 +38,17 @@ void test_SHA256_Transform_pass_case_1() {
         0xe66bd4d6, 0x859e5bff, 0x83b5aad6, 0xdd626d5a
     };
 
-    // Call SHA256_Transform and check for correctness
     SHA256_Transform(state, block, W, S);
-    if (memcmp(state, expected_state, sizeof(state)) == 0) {
-        print_state("passed: ", state);
-    } else {
-        print_state("failed: ", state);
+    // Use CUnit assertion for memory comparison
+    CU_ASSERT_EQUAL(memcmp(state, expected_state, sizeof(state)), 0);
+    if (memcmp(state, expected_state, sizeof(state)) != 0) {
+        print_state_debug("Actual state: ", state);
+        print_state_debug("Expected state: ", expected_state);
     }
 }
 
 // Test Case 2: Another correct transformation with a different block
-void test_SHA256_Transform_pass_case_2() {
+void test_SHA256_Transform_pass_case_2(void) {
     uint32_t state[8] = {
         0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a,
         0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19
@@ -71,17 +72,16 @@ void test_SHA256_Transform_pass_case_2() {
         0x55555555, 0x99999999, 0x11111111, 0x77777777
     };
 
-    // Call SHA256_Transform and check for correctness
     SHA256_Transform(state, block, W, S);
-    if (memcmp(state, expected_state, sizeof(state)) == 0) {
-        print_state("passed: ", state);
-    } else {
-        print_state("failed: ", state);
+    CU_ASSERT_EQUAL(memcmp(state, expected_state, sizeof(state)), 0);
+    if (memcmp(state, expected_state, sizeof(state)) != 0) {
+        print_state_debug("Actual state: ", state);
+        print_state_debug("Expected state: ", expected_state);
     }
 }
 
 // Test Case 3: Failure case to validate mismatched expected state
-void test_SHA256_Transform_fail_case_1() {
+void test_SHA256_Transform_fail_case_1(void) {
     uint32_t state[8] = {
         0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a,
         0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19
@@ -105,18 +105,51 @@ void test_SHA256_Transform_fail_case_1() {
         0x1f1f1f1f, 0x0e0e0e0e, 0x7a7a7a7a, 0x9f9f9f9f
     };
 
-    // Call SHA256_Transform and check for failure
     SHA256_Transform(state, block, W, S);
+    // Here we assert that the states are NOT equal, as this is a "fail" test case
+    CU_ASSERT_NOT_EQUAL(memcmp(state, expected_state, sizeof(state)), 0);
     if (memcmp(state, expected_state, sizeof(state)) == 0) {
-        print_state("passed: ", state);
-    } else {
-        print_state("failed: ", state);
+        print_state_debug("Test failed: Actual state matched intentionally incorrect expected state.\nActual state: ", state);
+        print_state_debug("Expected state: ", expected_state);
     }
 }
 
-int main() {
-    test_SHA256_Transform_pass_case_1();
-    test_SHA256_Transform_pass_case_2();
-    test_SHA256_Transform_fail_case_1();
+// CUnit suite initialization and cleanup functions
+int init_suite(void) {
     return 0;
+}
+
+int clean_suite(void) {
+    return 0; 
+}
+
+int main() {
+    CU_pSuite pSuite = NULL;
+
+    // Initialize the CUnit test registry
+    if (CUE_SUCCESS != CU_initialize_registry())
+        return CU_get_error();
+
+    // Add a suite to the registry
+    pSuite = CU_add_suite("SHA256_Transform_Suite", init_suite, clean_suite);
+    if (NULL == pSuite) {
+        CU_cleanup_registry();
+        return CU_get_error();
+    }
+
+    // Add the tests to the suite
+    if ((NULL == CU_add_test(pSuite, "test_SHA256_Transform_pass_case_1", test_SHA256_Transform_pass_case_1)) ||
+        (NULL == CU_add_test(pSuite, "test_SHA256_Transform_pass_case_2", test_SHA256_Transform_pass_case_2)) ||
+        (NULL == CU_add_test(pSuite, "test_SHA256_Transform_fail_case_1", test_SHA256_Transform_fail_case_1))) {
+        CU_cleanup_registry();
+        return CU_get_error();
+    }
+
+    // Run all tests using the basic interface
+    CU_basic_set_mode(CU_BRM_VERBOSE); // Set output mode to verbose
+    CU_basic_run_tests();
+
+    // Clean up registry and return results
+    CU_cleanup_registry();
+    return CU_get_error();
 }
